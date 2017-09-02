@@ -8,6 +8,10 @@ use App\Http\Controllers\ApiController;
 
 class ProductTransactionController extends ApiController
 {
+    public function __construct()
+    {
+        parent::__construct();
+    }
 
     public function index(Product $product)
     {
