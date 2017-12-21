@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use App\Traits\ApiResponser;
+use Barryvdh\Cors\CorsService;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -55,54 +56,62 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
-        if ($exception instanceof ValidationException){
-            return $this->convertValidationExceptionToResponse($exception, $request);
-        }
+      $response = $this->handleException($request, $exception);
 
-        if ($exception instanceof ModelNotFoundException){
-            $modelName = strtolower(class_basename($exception->getModel()));
+      app(CorsService::class)->addActualRequestHeaders($response, $request);
 
-            return $this->errorResponse("Does not exist any {$modelName} with the specied identificator", 404);
-        }
+      return $response;
+    }
 
-        if ($exception instanceof AuthenticationException){
-            return $this->unauthenticated($request, $exception);
-        }
+    public function handleException($request, Exception $exception)
+    {
+      if ($exception instanceof ValidationException){
+          return $this->convertValidationExceptionToResponse($exception, $request);
+      }
 
-        if ($exception instanceof AuthorizationException){
-            return $this->errorResponse($exception->getMessage(), 403);
-        }
+      if ($exception instanceof ModelNotFoundException){
+          $modelName = strtolower(class_basename($exception->getModel()));
 
-        if ($exception instanceof NotFoundHttpException){
-            return $this->errorResponse('The specified URL can not be found', 404);
-        }
+          return $this->errorResponse("Does not exist any {$modelName} with the specied identificator", 404);
+      }
 
-        if ($exception instanceof MethodNotAllowedHttpException){
-            return $this->errorResponse('The specified method for the request is invalid', 405);
-        }
+      if ($exception instanceof AuthenticationException){
+          return $this->unauthenticated($request, $exception);
+      }
 
-        if ($exception instanceof HttpException){
-            return $this->errorResponse($exception->getMessage(), $exception->getStatusCode());
-        }
+      if ($exception instanceof AuthorizationException){
+          return $this->errorResponse($exception->getMessage(), 403);
+      }
 
-        if ($exception instanceof QueryException){
-            $errorCode = $exception->errorInfo[1];
+      if ($exception instanceof NotFoundHttpException){
+          return $this->errorResponse('The specified URL can not be found', 404);
+      }
 
-            if ($errorCode == 1451){
-                return $this->errorResponse('Cannot remove this resource permanently. It is related with any other resource', 409);
-            }
-        }
+      if ($exception instanceof MethodNotAllowedHttpException){
+          return $this->errorResponse('The specified method for the request is invalid', 405);
+      }
 
-        if ($exception instanceof TokenMismatchException){
-            return redirect()->back()->withInput($request->input());
-        }
+      if ($exception instanceof HttpException){
+          return $this->errorResponse($exception->getMessage(), $exception->getStatusCode());
+      }
 
-        if (config('app.debug')){
-            return parent::render($request, $exception);
-        }
+      if ($exception instanceof QueryException){
+          $errorCode = $exception->errorInfo[1];
 
-        return $this->errorResponse('Unexpected Exception. Try later', 500);
+          if ($errorCode == 1451){
+              return $this->errorResponse('Cannot remove this resource permanently. It is related with any other resource', 409);
+          }
+      }
 
+      if ($exception instanceof TokenMismatchException){
+          return redirect()->back()->withInput($request->input());
+      }
+
+      if (config('app.debug')){
+          return parent::render($request, $exception);
+      }
+
+      return $this->errorResponse('Unexpected Exception. Try later', 500);
     }
 
     /**
